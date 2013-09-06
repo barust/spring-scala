@@ -16,10 +16,11 @@
 
 package org.springframework.scala.context.function
 
-import org.springframework.context.support.GenericApplicationContext
-import org.springframework.beans.factory.support.BeanNameGenerator
+import org.springframework.beans.factory.BeanFactory
+import org.springframework.beans.factory.support.{BeanDefinitionRegistry, BeanNameGenerator}
 import org.springframework.context.annotation.{ScopedProxyMode, ScopeMetadataResolver, ClassPathBeanDefinitionScanner, AnnotationConfigUtils}
 import org.springframework.core.`type`.filter.TypeFilter
+import org.springframework.core.env.Environment
 
 /**
  * Defines the configuration elements for the Spring Framework's application context
@@ -50,9 +51,11 @@ trait ContextSupport {
 	 * configuration trait for that purpose.
 	 */
 	def enableAnnotationConfig() {
-		onRegister((applicationContext: GenericApplicationContext,
-		                      beanNameGenerator: BeanNameGenerator) => {
-			AnnotationConfigUtils.registerAnnotationConfigProcessors(applicationContext)
+		onRegister((beanFactory: BeanFactory,
+		            beanRegistry: BeanDefinitionRegistry,
+		            environment: Environment,
+		            beanNameGenerator: BeanNameGenerator) => {
+			AnnotationConfigUtils.registerAnnotationConfigProcessors(beanRegistry)
 		})
 	}
 
@@ -99,17 +102,18 @@ trait ContextSupport {
 				"Cannot define both 'scopeResolver' and 'scopedProxy' on 'componentScan' option")
 		}
 
-		onRegister((applicationContext: GenericApplicationContext,
+		onRegister((beanFactory: BeanFactory,
+		            beanRegistry: BeanDefinitionRegistry,
+		            environment: Environment,
 		            defaultBeanNameGenerator: BeanNameGenerator) => {
 			val scanner = new ClassPathBeanDefinitionScanner(beanRegistry, useDefaultFilters)
-			scanner.setResourceLoader(applicationContext)
 			scanner.setEnvironment(environment)
-			includeFilters.foreach(scanner.addIncludeFilter(_))
-			excludeFilters.foreach(scanner.addExcludeFilter(_))
-			resourcePattern.foreach(scanner.setResourcePattern(_))
+			includeFilters.foreach(scanner.addIncludeFilter)
+			excludeFilters.foreach(scanner.addExcludeFilter)
+			resourcePattern.foreach(scanner.setResourcePattern)
 			scanner.setBeanNameGenerator(beanNameGenerator.getOrElse(defaultBeanNameGenerator))
-			scopeResolver.foreach(scanner.setScopeMetadataResolver(_))
-			scopedProxy.foreach(scanner.setScopedProxyMode(_))
+			scopeResolver.foreach(scanner.setScopeMetadataResolver)
+			scopedProxy.foreach(scanner.setScopedProxyMode)
 			scanner.scan(basePackages: _*)
 		})
 	}

@@ -16,21 +16,21 @@
 
 package org.springframework.scala.context.function
 
-import org.springframework.scala.beans.factory.function.{InitDestroyFunctionBeanPostProcessor, FunctionalRootBeanDefinition}
 import org.springframework.beans.factory.BeanFactory
+import org.springframework.beans.factory.config.{BeanDefinition, BeanDefinitionHolder, ConfigurableBeanFactory}
+import org.springframework.beans.factory.support._
 import org.springframework.beans.factory.xml.XmlBeanDefinitionReader
+import org.springframework.context.annotation.AnnotatedBeanDefinitionReader
 import org.springframework.context.support.GenericApplicationContext
 import org.springframework.core.env.Environment
-import org.springframework.util.StringUtils
-import org.springframework.util.Assert.state
-import org.springframework.beans.factory.config.{BeanDefinition, BeanDefinitionHolder, ConfigurableBeanFactory}
-import scala.collection.mutable.ListBuffer
-import org.springframework.context.annotation.AnnotatedBeanDefinitionReader
-import org.springframework.beans.factory.support._
-import scala.reflect.runtime.universe._
-import scala.reflect.runtime.currentMirror
+import org.springframework.scala.beans.factory.function.{InitDestroyFunctionBeanPostProcessor, FunctionalRootBeanDefinition}
 import org.springframework.scala.util.TypeTagUtils.typeToClass
+import org.springframework.util.Assert.state
+import org.springframework.util.StringUtils
+import scala.collection.mutable.ListBuffer
 import scala.reflect.ClassTag
+import scala.reflect.runtime.currentMirror
+import scala.reflect.runtime.universe._
 
 /**
  * Base trait used to declare one or more Spring Beans that may be processed by the Spring
@@ -65,9 +65,34 @@ trait FunctionalConfiguration extends DelayedInit {
 	private val initCode = new ListBuffer[() => Unit]
 
 	private val registrationCode =
-		new ListBuffer[(GenericApplicationContext, BeanNameGenerator) => Unit]
+		new ListBuffer[(BeanFactory, BeanDefinitionRegistry, Environment, BeanNameGenerator) => Unit]
 
-	private var applicationContext: GenericApplicationContext = _
+	/**
+	 * Returns the bean factory associated with this functional configuration.
+	 *
+	 * @return the bean factory
+	 */
+	protected def beanFactory: BeanFactory = _beanFactory
+
+	private var _beanFactory: BeanFactory = _
+
+	/**
+	 * Returns the bean registry associated with this functional configuration.
+	 *
+	 * @return the bean registry
+	 */
+	protected def beanRegistry: BeanDefinitionRegistry = _beanRegistry
+
+	private var _beanRegistry: BeanDefinitionRegistry = _
+
+	/**
+	 * Returns the environment associated with this functional configuration.
+	 *
+	 * @return the environment
+	 */
+	protected def environment: Environment = _environment
+
+	private var _environment: Environment = _
 
 	private var beanNameGenerator: BeanNameGenerator = _
 
@@ -78,26 +103,8 @@ trait FunctionalConfiguration extends DelayedInit {
 		                    classOf[InitDestroyFunctionBeanPostProcessor])
 	}
 
-	/**
-	 * Returns the bean factory associated with this functional configuration.
-	 *
-	 * @return the bean factory
-	 */
-	protected def beanFactory: BeanFactory = applicationContext
 
-	/**
-	 * Returns the bean registry associated with this functional configuration.
-	 *
-	 * @return the bean registry
-	 */
-	protected def beanRegistry: BeanDefinitionRegistry = applicationContext
 
-	/**
-	 * Returns the environment associated with this functional configuration.
-	 *
-	 * @return the environment
-	 */
-	protected def environment: Environment = applicationContext.getEnvironment
 
 	/**
 	 * Return an instance, which may be shared or independent, of the specified bean.
@@ -286,20 +293,48 @@ trait FunctionalConfiguration extends DelayedInit {
 	 * @param applicationContext the application context
 	 * @param beanNameGenerator the bean name generator
 	 */
-	private[context] def register(applicationContext: GenericApplicationContext,
-	                              beanNameGenerator: BeanNameGenerator) {
-
+	private[springframework] def register(applicationContext: GenericApplicationContext,
+	                                      beanNameGenerator: BeanNameGenerator) {
 		require(applicationContext != null, "'applicationContext' must not be null")
 		require(beanNameGenerator != null, "'beanNameGenerator' must not be null")
 
-		this.applicationContext = applicationContext
+		register(applicationContext, applicationContext, applicationContext.getEnvironment, beanNameGenerator)
+	}
+
+	/**
+	 * Registers this functional configuration class with the given application context.
+	 *
+	 * @param beanFactory the bean factory
+	 * @param environment the environment, if any
+	 * @param beanNameGenerator the bean name generator
+	 */
+	private[springframework] def register(beanFactory: DefaultListableBeanFactory,
+																				environment: Environment,
+	                                      beanNameGenerator: BeanNameGenerator) {
+		require(beanFactory != null, "'applicationContext' must not be null")
+		require(beanNameGenerator != null, "'beanNameGenerator' must not be null")
+
+		register(beanFactory, beanFactory, environment, beanNameGenerator)
+	}
+
+	private def register(beanFactory: BeanFactory,
+	                     beanRegistry: BeanDefinitionRegistry,
+	                     environment: Environment,
+	                     beanNameGenerator: BeanNameGenerator) {
+		require(beanFactory != null, "'beanFactory' must not be null")
+		require(beanRegistry != null, "'beanRegistry' must not be null")
+		require(beanNameGenerator != null, "'beanNameGenerator' must not be null")
+
+		this._beanFactory = beanFactory
+		this._beanRegistry = beanRegistry
+		this._environment = environment
 		this.beanNameGenerator = beanNameGenerator
 
 		registerInitDestroyProcessor()
 
 		initCode.foreach(_())
 
-		registrationCode.foreach(_(applicationContext, beanNameGenerator))
+		registrationCode.foreach(_(beanFactory, beanRegistry, environment, beanNameGenerator))
 	}
 
 	/**
@@ -308,7 +343,7 @@ trait FunctionalConfiguration extends DelayedInit {
 	 *
 	 * @param function the function to be added
 	 */
-	final def onRegister(function: (GenericApplicationContext, BeanNameGenerator) => Unit ) {
+	final def onRegister(function: (BeanFactory, BeanDefinitionRegistry, Environment, BeanNameGenerator) => Unit ) {
 		registrationCode += function
 	}
 

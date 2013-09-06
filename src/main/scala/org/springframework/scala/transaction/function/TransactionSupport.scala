@@ -16,15 +16,16 @@
 
 package org.springframework.scala.transaction.function
 
-import org.springframework.scala.context.function.FunctionalConfiguration
-import org.springframework.transaction.config.TransactionManagementConfigUtils
-import org.springframework.beans.factory.support.{BeanNameGenerator, BeanDefinitionReaderUtils, RootBeanDefinition}
-import org.springframework.beans.factory.parsing.BeanComponentDefinition
-import org.springframework.beans.factory.config.{RuntimeBeanReference, BeanDefinition}
 import org.springframework.aop.config.AopConfigUtils
+import org.springframework.beans.factory.BeanFactory
+import org.springframework.beans.factory.config.{RuntimeBeanReference, BeanDefinition}
+import org.springframework.beans.factory.parsing.BeanComponentDefinition
+import org.springframework.beans.factory.support.{BeanDefinitionRegistry, BeanNameGenerator, BeanDefinitionReaderUtils, RootBeanDefinition}
+import org.springframework.core.env.Environment
+import org.springframework.scala.context.function.FunctionalConfiguration
 import org.springframework.transaction.annotation.AnnotationTransactionAttributeSource
+import org.springframework.transaction.config.TransactionManagementConfigUtils
 import org.springframework.transaction.interceptor.{BeanFactoryTransactionAttributeSourceAdvisor, TransactionInterceptor}
-import org.springframework.context.support.GenericApplicationContext
 
 /**
  * Defines additional FunctionalConfiguration elements for transaction support .
@@ -131,8 +132,10 @@ trait TransactionSupport {
       }
     }
 
-    onRegister((applicationContext: GenericApplicationContext,
-                beanNameGenerator: BeanNameGenerator) =>
+	  onRegister((beanFactory: BeanFactory,
+			            beanRegistry: BeanDefinitionRegistry,
+			            environment: Environment,
+			            beanNameGenerator: BeanNameGenerator) =>
       transactionMode match {
         case ProxyTransactionMode(proxyTargetClass) =>
           setupProxyTransactions(proxyTargetClass, beanNameGenerator)

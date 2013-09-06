@@ -16,13 +16,13 @@
 
 package org.springframework.scala.context.function
 
-import org.springframework.context.support.GenericApplicationContext
-import org.springframework.util.CollectionUtils
-import scala.collection.JavaConversions._
 import org.springframework.beans.BeanUtils
 import org.springframework.beans.factory.support.{DefaultBeanNameGenerator, BeanNameGenerator}
+import org.springframework.context.support.GenericApplicationContext
 import org.springframework.scala.context.RichApplicationContext
 import org.springframework.scala.util.TypeTagUtils.typeToClass
+import org.springframework.util.CollectionUtils
+import scala.collection.JavaConversions._
 import scala.reflect.ClassTag
 
 /**
@@ -44,8 +44,6 @@ class FunctionalConfigApplicationContext
 		extends GenericApplicationContext with RichApplicationContext {
 
 	var beanNameGenerator: BeanNameGenerator = new DefaultBeanNameGenerator
-
-	private val richApplicationContext: RichApplicationContext = this
 
 	/**
 	 * Registers a single [[org.springframework.scala.context.function.FunctionalConfiguration]]
